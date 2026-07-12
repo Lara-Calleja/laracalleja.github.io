@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lara Calleja · Analytics Engineering Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a16;
+    --bg-raised: #12122a;
+    --bg-panel: #171735;
+    --ink: #eef0ff;
+    --ink-dim: #9a9dc9;
+    --pink: #ff3d9a;
+    --pink-dim: #7a1f52;
+    --green: #4dff9e;
+    --green-dim: #1f8a58;
+    --cyan: #4de3ff;
+    --cyan-dim: #1c6f85;
+    --gold: #ffd23f;
+    --gold-dim: #8a6d1c;
+    --purple: #b967ff;
+    --black: #000000;
+    --pixel: 'Press Start 2P', monospace;
+    --mono: 'VT323', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--mono);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 20px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ── CRT / SCANLINE OVERLAY ── */
+  .crt {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 200;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.12) 3px
+    );
+    mix-blend-mode: multiply;
+  }
+
+  /* ── DOTTED STARFIELD BG (shared texture) ── */
+  .stars {
+    background-image: radial-gradient(rgba(255,255,255,0.16) 1px, transparent 1.2px);
+    background-size: 22px 22px;
+  }
+
+  /* ── HUD NAV ── */
+  .hud {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 3px solid var(--green);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    font-family: var(--pixel);
+    font-size: 9px;
+    letter-spacing: 0.02em;
+  }
+
+  .hud-left { color: var(--gold); white-space: nowrap; }
+
+  .hud-links {
+    display: flex;
+    gap: 1.1rem;
+    list-style: none;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .hud-links a {
+    color: var(--ink);
+    text-decoration: none;
+    padding: 6px 8px;
+    border: 2px solid transparent;
+  }
+  .hud-links a:hover, .hud-links a:focus-visible {
+    color: var(--green);
+    border-color: var(--green);
+    outline: none;
+  }
+
+  .hud-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--pink);
+    white-space: nowrap;
+  }
+
+  .heart { color: var(--pink); }
+
+  @media (max-width: 760px) {
+    .hud { flex-direction: column; align-items: flex-start; font-size: 8px; }
+    .hud-links { justify-content: flex-start; gap: 0.75rem; }
+  }
+
+  /* ── LAYOUT ── */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  section { padding: 4rem 0; position: relative; }
+
+  /* ── BRICK DIVIDER STRIP (also acts as section label) ── */
+  .brick-strip {
+    height: 46px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    border-top: 3px solid var(--black);
+    border-bottom: 3px solid var(--black);
+    position: relative;
+  }
+  .brick-strip::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--black) 2px, transparent 2px),
+      linear-gradient(90deg, var(--black) 2px, transparent 2px);
+    background-size: 100% 23px, 44px 100%;
+    opacity: 0.55;
+  }
+  .brick-strip span {
+    display: inline-block;
+    font-family: var(--pixel);
+    font-size: 12px;
+    padding: 0 1.5rem;
+    animation: scroll-left 18s linear infinite;
+  }
+  @keyframes scroll-left {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .brick-strip.strip-green { background: var(--green-dim); color: var(--black); }
+  .brick-strip.strip-pink { background: var(--pink-dim); color: var(--ink); }
+  .brick-strip.strip-cyan { background: var(--cyan-dim); color: var(--black); }
+  .brick-strip.strip-gold { background: var(--gold-dim); color: var(--black); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brick-strip span { animation: none; }
+  }
+
+  /* ── SECTION HEADERS ── */
+  .section-label {
+    font-family: var(--pixel);
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+
+  .section-title {
+    font-family: var(--pixel);
+    font-size: clamp(1.1rem, 3vw, 1.7rem);
+    line-height: 1.5;
+    color: var(--ink);
+    margin-bottom: 1.25rem;
+  }
+
+  .section-desc {
+    font-size: 21px;
+    color: var(--ink-dim);
+    max-width: 560px;
+    margin-bottom: 2.5rem;
+  }
+
+  /* ── PIXEL PANEL (dialog-box style) ── */
+  .pixel-panel {
+    background: var(--bg-panel);
+    border: 3px solid var(--black);
+    box-shadow: 6px 6px 0 rgba(0,0,0,0.65);
+    position: relative;
+    margin-bottom: 1.75rem;
+  }
+
+  .pixel-panel-head {
+    background: var(--pink);
+    color: var(--black);
+    font-family: var(--pixel);
+    font-size: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 3px solid var(--black);
+  }
+  .pixel-panel-head .dots { display: flex; gap: 5px; }
+  .pixel-panel-head .dots span {
+    width: 8px; height: 8px; background: var(--black); display: inline-block;
+  }
+
+  .pixel-panel-body { padding: 1.5rem; }
+
+  .pixel-panel.green .pixel-panel-head { background: var(--green); }
+  .pixel-panel.cyan .pixel-panel-head { background: var(--cyan); }
+  .pixel-panel.gold .pixel-panel-head { background: var(--gold); }
+
+  /* ── PIXEL BUTTON ── */
+  .pixel-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--pixel);
+    font-size: 11px;
+    color: var(--black);
+    background: var(--green);
+    border: 3px solid var(--black);
+    box-shadow: 5px 5px 0 var(--black);
+    padding: 12px 20px;
+    text-decoration: none;
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+  .pixel-btn:hover { transform: translate(2px,2px); box-shadow: 3px 3px 0 var(--black); }
+  .pixel-btn:active { transform: translate(5px,5px); box-shadow: 0 0 0 var(--black); }
+  .pixel-btn.alt { background: var(--ink); }
+  .pixel-btn.pink { background: var(--pink); color: var(--ink); }
+
+  .btn-row { display: flex; flex-wrap: wrap; gap: 1rem; }
+
+  /* ── TAGS / CHIPS ── */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1.5rem 0 2rem; }
+  .chip {
+    font-family: var(--pixel);
+    font-size: 9px;
+    padding: 8px 12px;
+    border: 2px solid var(--black);
+    background: var(--bg-raised);
+    color: var(--gold);
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 4rem 0 2rem;
+    text-align: center;
+  }
+
+  .hero-frame {
+    border: 3px solid var(--green);
+    box-shadow: 0 0 0 3px var(--black), 0 0 24px rgba(77,255,158,0.25);
+    background: var(--black);
+    padding: 3rem 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--pixel);
+    font-size: 12px;
+    color: var(--gold);
+    margin-bottom: 1.25rem;
+  }
+
+  .hero h1 {
+    font-family: var(--pixel);
+    font-size: clamp(1.6rem, 6vw, 2.8rem);
+    line-height: 1.4;
+    color: var(--pink);
+    text-shadow: 3px 3px 0 var(--purple);
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-sub {
+    font-family: var(--pixel);
+    font-size: 11px;
+    color: var(--cyan);
+    margin-bottom: 1.75rem;
+  }
+
+  .xp-bar-wrap {
+    max-width: 420px;
+    margin: 0 auto 0.5rem;
+    text-align: left;
+  }
+  .xp-label {
+    font-family: var(--pixel);
+    font-size: 9px;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  .xp-bar {
+    height: 22px;
+    background: var(--bg-raised);
+    border: 3px solid var(--black);
+    box-shadow: 3px 3px 0 var(--black);
+    position: relative;
+  }
+  .xp-fill {
+    height: 100%;
+    width: 72%;
+    background: repeating-linear-gradient(90deg, var(--green), var(--green) 8px, var(--green-dim) 8px, var(--green-dim) 10px);
+  }
+
+  .hero-bio {
+    font-size: 22px;
+    color: var(--ink-dim);
+    max-width: 600px;
+    margin: 2rem auto 1.5rem;
+  }
+
+  /* ── SPRITE (mascot avatar, decorative, non-photoreal) ── */
+  .sprite-wrap { display: flex; justify-content: center; margin: 1.5rem 0; }
+  .sprite {
+    image-rendering: pixelated;
+    filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.6));
+  }
+
+  /* ── PLAYER GRID ── */
+  .player-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 700px) {
+    .player-grid { grid-template-columns: 1fr; }
+  }
+  .player-grid .span-2 { grid-column: 1 / -1; }
+
+  .stat-line { margin-bottom: 0.9rem; font-size: 21px; }
+  .stat-key { color: var(--gold); font-family: var(--pixel); font-size: 9px; display: block; margin-bottom: 4px; }
+
+  .inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 10px;
+    margin-top: 0.5rem;
+  }
+  .inv-item {
+    background: var(--bg-raised);
+    border: 2px solid var(--black);
+    box-shadow: 3px 3px 0 var(--black);
+    padding: 10px 4px;
+    text-align: center;
+    font-family: var(--pixel);
+    font-size: 8px;
+    color: var(--cyan);
+  }
+
+  .skill-list { list-style: none; }
+  .skill-list li {
+    font-size: 21px;
+    padding-left: 1.4em;
+    position: relative;
+    margin-bottom: 0.4rem;
+  }
+  .skill-list li::before {
+    content: '\2605';
+    position: absolute;
+    left: 0;
+    color: var(--gold);
+    font-size: 0.8em;
+  }
+
+  /* ── QUEST / PROJECT CARDS ── */
+  .quest-card {
+    background: var(--bg-panel);
+    border: 3px solid var(--black);
+    box-shadow: 6px 6px 0 rgba(0,0,0,0.65);
+    margin-bottom: 1.75rem;
+  }
+  .quest-head {
+    padding: 1.25rem 1.5rem 0.9rem;
+    border-bottom: 3px dashed rgba(255,255,255,0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .quest-type {
+    font-family: var(--pixel);
+    font-size: 8px;
+    color: var(--cyan);
+    display: block;
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.04em;
+  }
+  .quest-title {
+    font-family: var(--pixel);
+    font-size: 13px;
+    color: var(--ink);
+    line-height: 1.6;
+  }
+  .quest-status {
+    font-family: var(--pixel);
+    font-size: 8px;
+    padding: 6px 10px;
+    border: 2px solid var(--black);
+    white-space: nowrap;
+    height: fit-content;
+  }
+  .status-complete { background: var(--green); color: var(--black); }
+  .status-progress { background: var(--gold); color: var(--black); }
+  .status-active { background: var(--purple); color: var(--ink); }
+
+  .quest-body { padding: 1.25rem 1.5rem 1.5rem; }
+  .quest-desc { font-size: 21px; color: var(--ink-dim); margin-bottom: 1.25rem; }
+
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 1.25rem;
+  }
+  .module-block {
+    background: var(--bg-raised);
+    border: 2px solid var(--black);
+    padding: 12px 14px;
+  }
+  .module-name {
+    font-family: var(--pixel);
+    font-size: 8px;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .module-desc { font-size: 18px; color: var(--ink-dim); line-height: 1.4; }
+  .module-status { font-family: var(--pixel); font-size: 8px; margin-top: 8px; display: inline-block; }
+  .module-status.done { color: var(--green); }
+  .module-status.wip { color: var(--gold); }
+
+  .loot-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .loot-label { font-family: var(--pixel); font-size: 8px; color: var(--ink-dim); margin-right: 4px; }
+  .loot-chip {
+    font-size: 16px;
+    padding: 4px 10px;
+    background: var(--bg-raised);
+    border: 2px solid var(--black);
+    color: var(--ink-dim);
+  }
+
+  /* ── QUEST LOG / EXPERIENCE TIMELINE ── */
+  .timeline-item {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 1.5rem;
+    padding: 1.75rem 0;
+    border-bottom: 2px dashed rgba(255,255,255,0.12);
+  }
+  .timeline-item:last-child { border-bottom: none; }
+  .timeline-period {
+    font-family: var(--pixel);
+    font-size: 9px;
+    color: var(--gold);
+    padding-top: 3px;
+  }
+  .timeline-role { font-family: var(--pixel); font-size: 11px; color: var(--ink); margin-bottom: 6px; line-height: 1.6; }
+  .timeline-company { font-size: 18px; color: var(--cyan); margin-bottom: 0.6rem; }
+  .timeline-desc { font-size: 20px; color: var(--ink-dim); }
+
+  @media (max-width: 600px) {
+    .timeline-item { grid-template-columns: 1fr; gap: 0.35rem; }
+  }
+
+  /* ── CONTINUE / CONTACT ── */
+  .continue-panel {
+    background: var(--black);
+    border: 3px solid var(--pink);
+    box-shadow: 0 0 0 3px var(--black), 0 0 30px rgba(255,61,154,0.25);
+    padding: 3rem 2rem;
+    text-align: center;
+  }
+  .continue-title {
+    font-family: var(--pixel);
+    font-size: clamp(1.3rem, 4vw, 2rem);
+    color: var(--pink);
+    text-shadow: 3px 3px 0 var(--purple);
+    margin-bottom: 0.75rem;
+  }
+  .continue-blink {
+    font-family: var(--pixel);
+    font-size: 11px;
+    color: var(--gold);
+    margin-bottom: 2rem;
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .continue-blink { animation: none; } }
+
+  .menu-list { list-style: none; display: inline-block; text-align: left; margin: 0 auto; }
+  .menu-list li { margin-bottom: 1rem; }
+  .menu-list a {
+    font-family: var(--pixel);
+    font-size: 12px;
+    color: var(--ink);
+    text-decoration: none;
+    padding: 8px 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .menu-list a:hover, .menu-list a:focus-visible { color: var(--green); outline: none; }
+  .menu-cursor { color: var(--green); }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 2rem 0;
+    font-family: var(--pixel);
+    font-size: 9px;
+    color: var(--ink-dim);
+  }
+
+  /* ── UTIL ── */
+  a { color: inherit; }
+</style>
+</head>
+<body class="stars">
+
+<div class="crt" aria-hidden="true"></div>
+
+<!-- HUD NAV -->
+<header class="hud">
+  <div class="hud-left">XP: ANALYTICS ENGR LVL 01</div>
+  <ul class="hud-links">
+    <li><a href="#player">Player</a></li>
+    <li><a href="#missions">Missions</a></li>
+    <li><a href="#questlog">Quest Log</a></li>
+    <li><a href="#continue">Continue</a></li>
+  </ul>
+  <div class="hud-right"><span class="heart">&#9829;</span> PLAYER: LARA</div>
+</header>
+
+<!-- HERO -->
+<div class="container">
+  <section class="hero" id="top">
+    <div class="hero-frame">
+      <p class="hero-eyebrow">2026 &middot; PORTFOLIO</p>
+      <h1>LARA<br>CALLEJA</h1>
+      <p class="hero-sub">DATA ANALYST &rarr; ANALYTICS ENGINEER</p>
+
+      <div class="sprite-wrap" aria-hidden="true">
+        <svg class="sprite" width="72" height="72" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+          <rect width="16" height="16" fill="none"/>
+          <rect x="5" y="1" width="6" height="1" fill="#ff3d9a"/>
+          <rect x="4" y="2" width="1" height="1" fill="#ff3d9a"/>
+          <rect x="11" y="2" width="1" height="1" fill="#ff3d9a"/>
+          <rect x="4" y="3" width="8" height="4" fill="#2a2a52"/>
+          <rect x="5" y="4" width="1" height="1" fill="#4de3ff"/>
+          <rect x="10" y="4" width="1" height="1" fill="#4de3ff"/>
+          <rect x="4" y="7" width="8" height="1" fill="#171735"/>
+          <rect x="3" y="8" width="10" height="5" fill="#4dff9e"/>
+          <rect x="3" y="8" width="10" height="1" fill="#1f8a58"/>
+          <rect x="6" y="9" width="4" height="3" fill="#0a0a16"/>
+          <rect x="7" y="10" width="2" height="1" fill="#ffd23f"/>
+          <rect x="2" y="13" width="4" height="2" fill="#171735"/>
+          <rect x="10" y="13" width="4" height="2" fill="#171735"/>
+        </svg>
+      </div>
+
+      <div class="xp-bar-wrap">
+        <p class="xp-label">SKILL XP — SQL / DBT / DATA MODELING</p>
+        <div class="xp-bar"><div class="xp-fill"></div></div>
+      </div>
+
+      <p class="hero-bio">
+        Computer Science graduate moving from data analysis into analytics engineering &mdash; background in illustration and education taught me to think visually, document clearly, and always ask "so what?" I'm building a modern analytics stack around SQL, dbt, Git, and warehouse modeling, and deliberately working across domains &mdash; payments, e-commerce, ops &mdash; to build broad, transferable experience.
+      </p>
+
+      <div class="tag-row" style="justify-content:center;">
+        <span class="chip">SQL &middot; DBT &middot; MODELING</span>
+        <span class="chip">CROSS-DOMAIN ANALYTICS</span>
+        <span class="chip">OPEN TO REMOTE QUESTS</span>
+      </div>
+
+      <div class="btn-row" style="justify-content:center;">
+        <a class="pixel-btn" href="#missions">&#9654; START</a>
+        <a class="pixel-btn alt" href="mailto:callejalara0@gmail.com">SEND MSG</a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="brick-strip strip-green"><span>&#9733; PLAYER &nbsp; &#9733; PLAYER &nbsp; &#9733; PLAYER &nbsp; &#9733; PLAYER &nbsp; &#9733; PLAYER &nbsp; &#9733; PLAYER &nbsp; &#9733; PLAYER &nbsp; &#9733; PLAYER &nbsp;</span></div>
+
+<!-- PLAYER / LEVEL 01 -->
+<div class="container">
+  <section id="player">
+    <p class="section-label">Level 01</p>
+    <h2 class="section-title">Meet the player</h2>
+    <p class="section-desc">Stats, training, and equipped tools &mdash; the build so far.</p>
+
+    <div class="player-grid">
+      <div class="pixel-panel span-2">
+        <div class="pixel-panel-head">
+          <span>HELLO !!</span>
+          <span class="dots"><span></span><span></span><span></span></span>
+        </div>
+        <div class="pixel-panel-body">
+          <p class="stat-line"><span class="stat-key">PLAYER</span>Lara Calleja</p>
+          <p class="stat-line"><span class="stat-key">CLASS</span>Data Analyst &rarr; Analytics Engineer</p>
+          <p class="stat-line"><span class="stat-key">MISSION</span>Build clean, well-documented data pipelines and turn messy data into decisions that hold up.</p>
+          <p class="stat-line" style="margin-bottom:0;"><span class="stat-key">STATUS</span>Ready to explore, build, and win. Actively questing for remote analytics roles.</p>
+        </div>
+      </div>
+
+      <div class="pixel-panel cyan">
+        <div class="pixel-panel-head">
+          <span>TRAINING LOG</span>
+          <span class="dots"><span></span><span></span><span></span></span>
+        </div>
+        <div class="pixel-panel-body">
+          <p class="stat-line" style="margin-bottom:0;">BS Computer Science<br>Bicol University, Philippines<br>2012</p>
+        </div>
+      </div>
+
+      <div class="pixel-panel gold">
+        <div class="pixel-panel-head">
+          <span>INVENTORY</span>
+          <span class="dots"><span></span><span></span><span></span></span>
+        </div>
+        <div class="pixel-panel-body">
+          <div class="inventory-grid">
+            <div class="inv-item">SQL</div>
+            <div class="inv-item">dbt</div>
+            <div class="inv-item">POSTGRES</div>
+            <div class="inv-item">POWER BI</div>
+            <div class="inv-item">PYTHON</div>
+            <div class="inv-item">GIT</div>
+            <div class="inv-item">EXCEL</div>
+            <div class="inv-item">STREAMLIT</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pixel-panel span-2">
+        <div class="pixel-panel-head">
+          <span>SKILLS MASTERY</span>
+          <span class="dots"><span></span><span></span><span></span></span>
+        </div>
+        <div class="pixel-panel-body">
+          <ul class="skill-list">
+            <li>SQL &amp; dimensional data modeling</li>
+            <li>dbt-style transformation &amp; validation logic</li>
+            <li>Power BI, DAX &amp; Tableau reporting</li>
+            <li>Excel financial modeling &amp; Power Query</li>
+            <li>Python (Pandas, NumPy) for analysis pipelines</li>
+            <li>Git version control &amp; documentation</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="brick-strip strip-pink"><span>&#9733; MISSIONS &nbsp; &#9733; MISSIONS &nbsp; &#9733; MISSIONS &nbsp; &#9733; MISSIONS &nbsp; &#9733; MISSIONS &nbsp; &#9733; MISSIONS &nbsp; &#9733; MISSIONS &nbsp; &#9733; MISSIONS &nbsp;</span></div>
+
+<!-- MISSIONS / PROJECTS -->
+<div class="container">
+  <section id="missions">
+    <p class="section-label">Level 02</p>
+    <h2 class="section-title">Missions</h2>
+    <p class="section-desc">End-to-end analyses on real-world datasets &mdash; built around SQL modeling, validation logic, and clear documentation. Not just code snippets.</p>
+
+    <!-- GRAB -->
+    <div class="quest-card">
+      <div class="quest-head">
+        <div>
+          <span class="quest-type">FINANCIAL &amp; PRODUCT ANALYSIS</span>
+          <h3 class="quest-title">Grab Holdings &mdash; Multi-Segment Financial Analysis</h3>
+        </div>
+        <span class="quest-status status-complete">QUEST COMPLETE</span>
+      </div>
+      <div class="quest-body">
+        <p class="quest-desc">A three-module deep-dive into Grab Holdings &mdash; modeling segment revenue structure, analyzing transaction risk and behavior via SQL on a synthetic payments dataset, and synthesizing insights into an executive Power BI dashboard.</p>
+        <div class="module-grid">
+          <div class="module-block">
+            <p class="module-name">MODULE A</p>
+            <p class="module-desc">Excel financial model &mdash; segment revenue (Deliveries, Mobility, Fintech, Others) with YoY growth and margin analysis</p>
+            <span class="module-status done">&#9632; COMPLETE</span>
+          </div>
+          <div class="module-block">
+            <p class="module-name">MODULE B</p>
+            <p class="module-desc">SQL transaction analysis &mdash; fraud pattern detection, customer segmentation, cohort behavior on PaySim (PostgreSQL)</p>
+            <span class="module-status done">&#9632; COMPLETE</span>
+          </div>
+          <div class="module-block">
+            <p class="module-name">MODULE C</p>
+            <p class="module-desc">Power BI executive dashboard &mdash; KPI cards, trend lines, segment drill-through for a CFO-level audience</p>
+            <span class="module-status done">&#9632; COMPLETE</span>
+          </div>
+        </div>
+        <div class="loot-row">
+          <span class="loot-label">LOOT:</span>
+          <span class="loot-chip">Excel</span>
+          <span class="loot-chip">PostgreSQL</span>
+          <span class="loot-chip">Power BI</span>
+          <span class="loot-chip">DAX</span>
+          <span class="loot-chip">Power Query</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIDE SMART -->
+    <div class="quest-card">
+      <div class="quest-head">
+        <div>
+          <span class="quest-type">E-COMMERCE ANALYTICS</span>
+          <h3 class="quest-title">Ride Smart &mdash; Motorcycle Parts Value Scoring</h3>
+        </div>
+        <span class="quest-status status-progress">IN PROGRESS</span>
+      </div>
+      <div class="quest-body">
+        <p class="quest-desc">A collaborative project applying a weighted value-scoring model to motorcycle spare parts &mdash; combining price, reliability, and availability signals to surface buying recommendations. Built in Excel with a Power BI layer, data collected via web scraping.</p>
+        <div class="loot-row">
+          <span class="loot-label">LOOT:</span>
+          <span class="loot-chip">Excel</span>
+          <span class="loot-chip">Power BI</span>
+          <span class="loot-chip">Python (BeautifulSoup)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- GCASH -->
+    <div class="quest-card">
+      <div class="quest-head">
+        <div>
+          <span class="quest-type">FRAUD DETECTION &middot; MACHINE LEARNING</span>
+          <h3 class="quest-title">GCash / Maya &mdash; Transaction Anomaly Detector</h3>
+        </div>
+        <span class="quest-status status-progress">IN PROGRESS</span>
+      </div>
+      <div class="quest-body">
+        <p class="quest-desc">An end-to-end anomaly detection pipeline modeled on mobile wallet behavior &mdash; using GCash and Maya transaction patterns to surface anomalies through machine learning, SQL-based risk queries, and an interactive Streamlit dashboard. Scoped as a six-module analyst deliverable.</p>
+        <div class="module-grid">
+          <div class="module-block">
+            <p class="module-name">MODULE A</p>
+            <p class="module-desc">Data generation &amp; EDA &mdash; synthetic transaction dataset with realistic behavioral patterns</p>
+            <span class="module-status wip">&#9632; IN PROGRESS</span>
+          </div>
+          <div class="module-block">
+            <p class="module-name">MODULE B</p>
+            <p class="module-desc">Python ML pipeline &mdash; sklearn anomaly detection (Isolation Forest / LOF) with feature engineering</p>
+            <span class="module-status wip">&#9632; PLANNED</span>
+          </div>
+          <div class="module-block">
+            <p class="module-name">MODULE C</p>
+            <p class="module-desc">SQL risk analysis &mdash; flagging rules, velocity checks, behavioral segmentation in PostgreSQL</p>
+            <span class="module-status wip">&#9632; PLANNED</span>
+          </div>
+          <div class="module-block">
+            <p class="module-name">MODULES D&ndash;F</p>
+            <p class="module-desc">Power BI dashboard &middot; Streamlit deployment &middot; executive summary write-up</p>
+            <span class="module-status wip">&#9632; PLANNED</span>
+          </div>
+        </div>
+        <div class="loot-row">
+          <span class="loot-label">LOOT:</span>
+          <span class="loot-chip">Python</span>
+          <span class="loot-chip">sklearn</span>
+          <span class="loot-chip">PostgreSQL</span>
+          <span class="loot-chip">Power BI</span>
+          <span class="loot-chip">Streamlit</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOB MATCH AGENT -->
+    <div class="quest-card">
+      <div class="quest-head">
+        <div>
+          <span class="quest-type">AI AGENT &middot; LLM APPLICATION</span>
+          <h3 class="quest-title">Job Match Agent &mdash; AI-Powered Role Fit Analyzer</h3>
+        </div>
+        <span class="quest-status status-active">IN PROGRESS</span>
+      </div>
+      <div class="quest-body">
+        <p class="quest-desc">An AI agent that takes a candidate profile and a live job posting URL, then returns a match score, a breakdown of matched and missing skills, and a gap analysis with next steps. Built to demonstrate LLM orchestration and structured output, not just prompt chaining.</p>
+        <div class="module-grid">
+          <div class="module-block">
+            <p class="module-name">INPUT</p>
+            <p class="module-desc">User enters profile (skills, experience, tools) and pastes a live job posting link</p>
+          </div>
+          <div class="module-block">
+            <p class="module-name">PROCESSING</p>
+            <p class="module-desc">Agent scrapes the JD, extracts requirements, compares against the profile via LLM reasoning</p>
+          </div>
+          <div class="module-block">
+            <p class="module-name">OUTPUT</p>
+            <p class="module-desc">% match score &middot; skills present &middot; skills missing &middot; prioritized gap-closing steps</p>
+          </div>
+        </div>
+        <div class="loot-row">
+          <span class="loot-label">LOOT:</span>
+          <span class="loot-chip">Python</span>
+          <span class="loot-chip">LangChain</span>
+          <span class="loot-chip">Anthropic API</span>
+          <span class="loot-chip">Streamlit</span>
+          <span class="loot-chip">Web scraping</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIVERR -->
+    <div class="quest-card">
+      <div class="quest-head">
+        <div>
+          <span class="quest-type">CLIENT WORK</span>
+          <h3 class="quest-title">Excel Financial Dashboards &mdash; Freelance (Fiverr)</h3>
+        </div>
+        <span class="quest-status status-complete">ACTIVE</span>
+      </div>
+      <div class="quest-body">
+        <p class="quest-desc">Custom Excel dashboards and financial reporting templates for small business clients &mdash; including automated P&amp;L trackers, KPI summaries, and dynamic chart layouts built with Power Query and structured table formatting.</p>
+        <div class="loot-row">
+          <span class="loot-label">LOOT:</span>
+          <span class="loot-chip">Excel</span>
+          <span class="loot-chip">Power Query</span>
+          <span class="loot-chip">Pivot Tables</span>
+          <span class="loot-chip">Financial Modeling</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="brick-strip strip-cyan"><span>&#9733; QUEST LOG &nbsp; &#9733; QUEST LOG &nbsp; &#9733; QUEST LOG &nbsp; &#9733; QUEST LOG &nbsp; &#9733; QUEST LOG &nbsp; &#9733; QUEST LOG &nbsp; &#9733; QUEST LOG &nbsp; &#9733; QUEST LOG &nbsp;</span></div>
+
+<!-- QUEST LOG / EXPERIENCE -->
+<div class="container">
+  <section id="questlog">
+    <p class="section-label">Level 03</p>
+    <h2 class="section-title">Quest log</h2>
+    <p class="section-desc">The path so far &mdash; every quest completed feeds into the next one.</p>
+
+    <div class="timeline-item">
+      <div class="timeline-period">2026 &ndash; PRESENT</div>
+      <div>
+        <p class="timeline-role">DATA ANALYST (INDEPENDENT PORTFOLIO PROJECTS)</p>
+        <p class="timeline-company">Self-Directed &middot; Cross-Domain Analytics</p>
+        <p class="timeline-desc">Building end-to-end analytics projects across different domains &mdash; payments, e-commerce, operations &mdash; deliberately building broad, transferable experience through SQL data modeling, Excel financial modeling, and Power BI dashboards, alongside a growing dbt / warehouse-modeling practice.</p>
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-period">MARCH 2016 &ndash; PRESENT</div>
+      <div>
+        <p class="timeline-role">FREELANCE ILLUSTRATOR &amp; PROJECT MANAGER</p>
+        <p class="timeline-company">Remote &middot; Mascot Books &amp; International Clients</p>
+        <p class="timeline-desc">Managed multiple international client projects simultaneously using structured tracking, documentation, and deadline management. Communicated updates and deliverables clearly across time zones &mdash; skills that transfer directly to analytical and reporting roles.</p>
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-period">MAY 2024 &ndash; OCT 2025</div>
+      <div>
+        <p class="timeline-role">ENGLISH TEACHER</p>
+        <p class="timeline-company">Kanlayanee Srithammarat School, Thailand</p>
+        <p class="timeline-desc">Tracked and reported on performance data for 120+ students, standardizing reporting formats to support data-driven academic planning. Managed records with accuracy for administrative compliance.</p>
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-period">OCT 2014 &ndash; APR 2015</div>
+      <div>
+        <p class="timeline-role">COMPUTER &amp; HEALTH TEACHER</p>
+        <p class="timeline-company">Saard Paderm Wittaya School, Thailand</p>
+        <p class="timeline-desc">Taught computer literacy and data organization fundamentals; maintained digital and paper-based records for administrative reporting.</p>
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-period">EDUCATION</div>
+      <div>
+        <p class="timeline-role">BS COMPUTER SCIENCE</p>
+        <p class="timeline-company">Bicol University, Philippines &middot; 2012</p>
+        <p class="timeline-desc">Foundation in programming, data structures, and systems thinking &mdash; now applied through SQL, dbt, and Python-based analytics engineering practice.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="brick-strip strip-gold"><span>&#9733; CONTINUE? &nbsp; &#9733; CONTINUE? &nbsp; &#9733; CONTINUE? &nbsp; &#9733; CONTINUE? &nbsp; &#9733; CONTINUE? &nbsp; &#9733; CONTINUE? &nbsp; &#9733; CONTINUE? &nbsp; &#9733; CONTINUE? &nbsp;</span></div>
+
+<!-- CONTINUE / CONTACT -->
+<div class="container">
+  <section id="contact">
+    <div class="continue-panel">
+      <p class="continue-title">CONTINUE?</p>
+      <p class="continue-blink">PRESS START TO GET IN TOUCH</p>
+      <ul class="menu-list">
+        <li><a href="mailto:callejalara0@gmail.com"><span class="menu-cursor">&#9654;</span> callejalara0@gmail.com</a></li>
+        <li><a href="https://www.linkedin.com/in/lara-calleja-womeninstem120789/" target="_blank"><span class="menu-cursor">&#9654;</span> LinkedIn Profile</a></li>
+        <li><a href="https://github.com/Lara-Calleja" target="_blank"><span class="menu-cursor">&#9654;</span> GitHub</a></li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<footer>&copy; 2026 LARA CALLEJA &middot; NO CONTINUES NEEDED, STILL PLAYING</footer>
+
+</body>
+</html>
